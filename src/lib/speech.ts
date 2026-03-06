@@ -59,10 +59,12 @@ class WebSpeechService implements SpeechService {
     return new Promise((resolve, reject) => {
       // 移動端與某些瀏覽器：嘗試解鎖語音引擎並清理目前的隊列
       try {
+        // 使用更強壯的序列確保引擎活躍
+        this.synthesis.pause()
         this.synthesis.cancel()
         this.synthesis.resume()
       } catch (e) {
-        console.warn('Speech synthesis resume/cancel failed:', e)
+        console.warn('Speech synthesis reset failed:', e)
       }
 
       const utterance = new SpeechSynthesisUtterance(text)
