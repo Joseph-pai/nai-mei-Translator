@@ -71,7 +71,7 @@ export default function Home() {
     }
   }
 
-  const handleNamiChat = async () => {
+  const handleNaimeChat = async () => {
     if (!selectedProvider || !apiKeys[selectedProvider]) {
       setValidationError('請先設置 AI 平台與 API Key 哦 🌸')
       return
@@ -320,7 +320,7 @@ export default function Home() {
 
         <div className="grid md:grid-cols-2 gap-8">
           <Button
-            onClick={isPlaying ? handleStop : handleNamiChat}
+            onClick={isPlaying ? handleStop : handleNaimeChat}
             disabled={!selectedProvider || !apiKeys[selectedProvider] || isRecording}
             className={`h-32 rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white ${isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-[#10B981] hover:bg-[#059669]'}`}
           >

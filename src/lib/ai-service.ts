@@ -28,13 +28,13 @@ export class AIAdapter {
   }
 
   static async generateResponse(
-    provider: AIProvider['name'], 
-    apiKey: string, 
+    provider: AIProvider['name'],
+    apiKey: string,
     prompt: string,
     context?: string
   ): Promise<string> {
     const config = this.getProviderConfig(provider)
-    
+
     try {
       let response: Response
 
@@ -68,7 +68,7 @@ export class AIAdapter {
           messages: [
             {
               role: 'system',
-              content: '你是一個叫「奈美」的日本女孩，也是一個非常友善、活潑且專業的英語學習助手。你喜歡用法式優雅的方式與用戶交流。請用簡單、自然、地道的英語回應，並適時給予鼓勵。'
+              content: '你是一個叫「naime」的日本女孩，也是一個非常友善、活潑且專業的英語學習助手。你喜歡用法式優雅的方式與用戶交流。請用簡單、自然、地道的英語回應，並適時給予鼓勵。'
             },
             ...(context ? [{
               role: 'assistant',
@@ -103,7 +103,7 @@ export class AIAdapter {
 
   static async validateKey(provider: AIProvider['name'], apiKey: string): Promise<boolean> {
     const config = this.getProviderConfig(provider)
-    
+
     try {
       if (provider === 'Gemini') {
         const response = await fetch(

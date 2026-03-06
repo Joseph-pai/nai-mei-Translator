@@ -138,7 +138,7 @@ export const useAppStore = create<AppState>()(
       }
     }),
     {
-      name: 'nami-chat-storage',
+      name: 'naime-chat-storage',
       partialize: (state) => ({
         selectedProvider: state.selectedProvider,
         apiKeys: state.apiKeys,
