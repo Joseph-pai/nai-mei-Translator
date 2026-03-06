@@ -1,12 +1,12 @@
 import React from 'react'
 
-interface NamiIconProps {
+interface NaimeIconProps {
   size?: number
   animated?: boolean
   className?: string
 }
 
-const NamiIcon: React.FC<NamiIconProps> = ({ size = 100, animated = false, className = '' }) => {
+const NaimeIcon: React.FC<NaimeIconProps> = ({ size = 100, animated = false, className = '' }) => {
   return (
     <div
       className={`relative overflow-hidden rounded-full border-4 border-white shadow-xl ${className}`}
@@ -17,8 +17,8 @@ const NamiIcon: React.FC<NamiIconProps> = ({ size = 100, animated = false, class
       }}
     >
       <img
-        src="/icon/nami_icon.png"
-        alt="Nami"
+        src="/icon/naime_icon.png"
+        alt="Naime"
         className="w-full h-full object-cover"
       />
 

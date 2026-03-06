@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import NamiIcon from '@/components/NamiIcon'
+import NaimeIcon from '@/components/NamiIcon'
 import { useAppStore } from '@/lib/store'
 import { AIAdapter } from '@/lib/ai-service'
 import { speechService } from '@/lib/speech'
@@ -84,7 +84,7 @@ export default function Home() {
     try {
       const topic = AIAdapter.generateChatTopic()
       const lengthHint = difficultyLevel === 'easy' ? '非常簡短（不超過15個單詞）' : difficultyLevel === 'medium' ? '適中長度（30個單詞左右）' : '詳細生動'
-      const prompt = `你現在是奈美。請根據這個話題跟用戶聊天，用簡單且地道的英語（適合${difficultyLevel}程度，長度請限制在${lengthHint}）：${topic}。請直接輸出對話內容，不要有其他廢話。`
+      const prompt = `你現在是 naime。請根據這個話題跟用戶聊天，用簡單且地道的英語（適合${difficultyLevel}程度，長度請限制在${lengthHint}）：${topic}。請直接輸出對話內容，不要有其他廢話。`
 
       const response = await AIAdapter.generateResponse(
         selectedProvider,
@@ -209,7 +209,7 @@ export default function Home() {
         <header className="text-center py-6 flex flex-col items-center">
           <div className="relative mb-6">
             <div className="absolute -inset-4 bg-white/40 blur-2xl rounded-full animate-pulse"></div>
-            <NamiIcon size={120} animated={isPlaying} />
+            <NaimeIcon size={120} animated={isPlaying} />
             <div className="absolute -bottom-2 -right-2 bg-pink-400 text-white p-2 rounded-full shadow-lg">
               <Sparkles size={20} />
             </div>
