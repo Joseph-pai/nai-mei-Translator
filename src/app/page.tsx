@@ -119,7 +119,7 @@ export default function Home() {
     try {
       const userChinese = await speechService.speechToText('zh')
       setRecording(false)
-      setCurrentThought('奈美正在翻譯中...')
+      setCurrentThought(`你說的是：「${userChinese}」... 奈美正在翻譯中...`)
 
       const prompt = `用戶說了中文：「${userChinese}」。請將其翻譯為地道的英文（適合${difficultyLevel}難度），並提供最多3個意義相同但表達不同的例句。格式請直接返回：[翻譯]\n例句1:...\n例句2:...\n例句3:...`
 
@@ -140,10 +140,16 @@ export default function Home() {
       })
       setCurrentThought(null)
       await speechService.textToSpeech(translated, 'en')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Practice error:', error)
-      setValidationError('口語練習遇到一點小麻煩，請再試一次。')
+      const msg = error.message || ''
+      if (msg.includes('超時') || msg.includes('權限')) {
+        setValidationError(`${msg}。請確保已允許麥克風權限，或環境不要太吵雜。🌸`)
+      } else {
+        setValidationError('口語練習遇到一點小麻煩，請再試一次。')
+      }
       setRecording(false)
+      setCurrentThought(null)
     }
   }
 
@@ -263,8 +269,8 @@ export default function Home() {
               key={level}
               onClick={() => setDifficultyLevel(level)}
               className={`px-8 py-3 rounded-2xl font-bold transition-all duration-300 ${difficultyLevel === level
-                  ? 'bg-[#1E293B] text-white shadow-xl scale-105'
-                  : 'bg-white text-[#64748B] hover:bg-blue-50 shadow-sm'
+                ? 'bg-[#1E293B] text-white shadow-xl scale-105'
+                : 'bg-white text-[#64748B] hover:bg-blue-50 shadow-sm'
                 }`}
             >
               {level === 'easy' ? '🧸 簡單' : level === 'medium' ? '☕ 中等' : '🚀 高級'}

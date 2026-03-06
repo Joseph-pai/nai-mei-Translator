@@ -95,37 +95,56 @@ class WebSpeechService implements SpeechService {
         return
       }
 
-      // 防止重複啟動導致的卡死
-      try {
-        this.recognition.stop()
-      } catch (e) { }
+      // 1. 先停掉之前可能存在的實例，徹底清理
+      try { this.recognition.abort() } catch (e) { }
 
       this.recognition.lang = language === 'zh' ? 'zh-CN' : 'en-US'
+      this.recognition.continuous = false
+      this.recognition.interimResults = true // 開啟中間結果，讓用戶看到正在輸入，減少焦慮
 
-      // 設置超時保護，防止識別不返回結果導致卡死
+      let finalTranscript = ''
+
+      // 2. 設置更彈性的超時 (例如 12秒)
       const timeout = setTimeout(() => {
         this.recognition.stop()
-        reject(new Error('語音識別超時，請重試'))
-      }, 8000)
+        if (!finalTranscript) {
+          reject(new Error('語音識別超時，請檢查麥克風權限或網絡'))
+        }
+      }, 12000)
 
       this.recognition.onresult = (event: any) => {
-        clearTimeout(timeout)
-        const transcript = event.results[0][0].transcript
-        resolve(transcript)
+        let interimTranscript = ''
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript
+          } else {
+            interimTranscript += event.results[i][0].transcript
+          }
+        }
+        // 如果有 Final 結果，或是已經識別出長度且停止
+        if (finalTranscript) {
+          clearTimeout(timeout)
+          resolve(finalTranscript)
+        }
       }
 
       this.recognition.onerror = (event: any) => {
         clearTimeout(timeout)
-        if (event.error === 'no-speech') {
-          reject(new Error('未檢測到聲音，請再說一次'))
-        } else {
-          reject(new Error(`語音識別錯誤: ${event.error}`))
+        const errorMessages: Record<string, string> = {
+          'no-speech': '未檢測到聲音',
+          'audio-capture': '找不到麥克風',
+          'not-allowed': '請開啟麥克風權限',
+          'network': '網絡連線失敗'
         }
+        reject(new Error(errorMessages[event.error] || `識別錯誤: ${event.error}`))
       }
 
       this.recognition.onend = () => {
-        clearTimeout(timeout)
-        // 如果還沒 resolve，說明沒識別到結果
+        // onend 不代表超時，可能是用戶說完了
+        if (finalTranscript) {
+          clearTimeout(timeout)
+          resolve(finalTranscript)
+        }
       }
 
       try {
