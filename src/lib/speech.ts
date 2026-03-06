@@ -100,41 +100,23 @@ class WebSpeechService implements SpeechService {
         return
       }
 
-      // 1. 先停掉之前可能存在的實例，徹底清理
       try { this.recognition.abort() } catch (e) { }
 
       this.recognition.lang = language === 'zh' ? 'zh-CN' : 'en-US'
-      this.recognition.continuous = false
-      this.recognition.interimResults = true // 開啟中間結果，讓用戶看到正在輸入，減少焦慮
+      this.recognition.continuous = true // 改為連續識別，支持手動停止
+      this.recognition.interimResults = true
 
       let finalTranscript = ''
 
-      // 2. 設置更彈性的超時 (例如 12秒)
-      const timeout = setTimeout(() => {
-        this.recognition.stop()
-        if (!finalTranscript) {
-          reject(new Error('語音識別超時，請檢查麥克風權限或網絡'))
-        }
-      }, 12000)
-
       this.recognition.onresult = (event: any) => {
-        let interimTranscript = ''
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscript += event.results[i][0].transcript
-          } else {
-            interimTranscript += event.results[i][0].transcript
           }
-        }
-        // 如果有 Final 結果，或是已經識別出長度且停止
-        if (finalTranscript) {
-          clearTimeout(timeout)
-          resolve(finalTranscript)
         }
       }
 
       this.recognition.onerror = (event: any) => {
-        clearTimeout(timeout)
         const errorMessages: Record<string, string> = {
           'no-speech': '未檢測到聲音',
           'audio-capture': '找不到麥克風',
@@ -145,17 +127,13 @@ class WebSpeechService implements SpeechService {
       }
 
       this.recognition.onend = () => {
-        // onend 不代表超時，可能是用戶說完了
-        if (finalTranscript) {
-          clearTimeout(timeout)
-          resolve(finalTranscript)
-        }
+        // 只有在 end 時才 resolve，由外部調用 stop() 觸發
+        resolve(finalTranscript.trim())
       }
 
       try {
         this.recognition.start()
       } catch (e) {
-        clearTimeout(timeout)
         reject(new Error('啟動識辨失敗，請檢查權限'))
       }
     })

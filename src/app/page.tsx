@@ -175,9 +175,17 @@ export default function Home() {
 
     setRecording(true)
     setDiffResult(null)
+    setCurrentThought(`正在聆聽您的發音：${selectedPracticeText}`)
+
     try {
       const transcript = await speechService.speechToText('en')
       setRecording(false)
+
+      if (!transcript) {
+        setValidationError('沒聽清楚您說什麼，請再試一次 🌸')
+        setCurrentThought(null)
+        return
+      }
 
       // 比對差異
       const diff = calculateDiff(selectedPracticeText, transcript)
@@ -191,6 +199,7 @@ export default function Home() {
     } catch (error: any) {
       setValidationError(error.message || '錄音檢測失敗，請再試一次 🌸')
       setRecording(false)
+      setCurrentThought(null)
     }
   }
 
