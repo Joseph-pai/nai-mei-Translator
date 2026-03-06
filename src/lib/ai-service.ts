@@ -10,12 +10,12 @@ export class AIAdapter {
       },
       Gemini: {
         baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-        model: 'gemini-pro',
+        model: 'gemini-1.5-flash',
         getApiKeyUrl: () => 'https://makersuite.google.com/app/apikey'
       },
       GPT: {
         baseUrl: 'https://api.openai.com/v1',
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o-mini',
         getApiKeyUrl: () => 'https://platform.openai.com/api-keys'
       },
       Grok: {
@@ -68,7 +68,7 @@ export class AIAdapter {
           messages: [
             {
               role: 'system',
-              content: '你是一個友善的英語學習助手，專門幫助用戶練習中英文口語對話。請用簡單、自然的英語回應。'
+              content: '你是一個叫「奈美」的日本女孩，也是一個非常友善、活潑且專業的英語學習助手。你喜歡用法式優雅的方式與用戶交流。請用簡單、自然、地道的英語回應，並適時給予鼓勵。'
             },
             ...(context ? [{
               role: 'assistant',

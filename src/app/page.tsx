@@ -1,18 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import NamiIcon from '@/components/NamiIcon'
 import { useAppStore } from '@/lib/store'
 import { AIAdapter } from '@/lib/ai-service'
 import { speechService } from '@/lib/speech'
-import { Mic, MicOff, Play, Pause, Settings, Volume2, VolumeX } from 'lucide-react'
+import { Mic, MicOff, Play, Square, Settings, Volume2, Sparkles, Languages, Award } from 'lucide-react'
 
 export default function Home() {
   const {
@@ -21,36 +20,44 @@ export default function Home() {
     isValidating,
     validationError,
     setSelectedProvider,
-    setApiKey,
     validateApiKey,
     setValidationError,
-    setMode,
     difficultyLevel,
     setDifficultyLevel,
     isPlaying,
     isRecording,
     setPlaying,
     setRecording,
-    startSession,
-    endSession
+    startSession
   } = useAppStore()
 
   const [showApiKeyInput, setShowApiKeyInput] = useState(false)
   const [tempApiKey, setTempApiKey] = useState('')
+  const [currentThought, setCurrentThought] = useState<string | null>(null)
+  const [practiceResult, setPracticeResult] = useState<{
+    original: string,
+    translated: string,
+    examples: string[],
+    score?: any
+  } | null>(null)
+
+  // 監聽播放狀態
+  useEffect(() => {
+    return () => {
+      speechService.stopSpeaking()
+      speechService.stopListening()
+    }
+  }, [])
 
   const handleProviderSelect = async (provider: string) => {
     const providerKey = provider as 'DeepSeek' | 'Gemini' | 'GPT' | 'Grok'
     setSelectedProvider(providerKey)
     setValidationError(null)
-    
-    if (apiKeys[providerKey]) {
-      // 驗證已有的API Key
-      const isValid = await validateApiKey(providerKey, apiKeys[providerKey])
-      if (!isValid) {
-        setShowApiKeyInput(true)
-      }
-    } else {
+
+    if (!apiKeys[providerKey]) {
       setShowApiKeyInput(true)
+    } else {
+      setShowApiKeyInput(false)
     }
   }
 
@@ -59,7 +66,6 @@ export default function Home() {
 
     const isValid = await validateApiKey(selectedProvider, tempApiKey.trim())
     if (isValid) {
-      setApiKey(selectedProvider, tempApiKey.trim())
       setShowApiKeyInput(false)
       setTempApiKey('')
     }
@@ -67,257 +73,296 @@ export default function Home() {
 
   const handleNamiChat = async () => {
     if (!selectedProvider || !apiKeys[selectedProvider]) {
-      setValidationError('請先選擇AI平台並設置API Key')
+      setValidationError('請先設置 AI 平台與 API Key 哦 🌸')
       return
     }
 
     startSession('chat', difficultyLevel)
     setPlaying(true)
+    setCurrentThought('奈美正在思考話題...')
 
     try {
       const topic = AIAdapter.generateChatTopic()
+      const prompt = `你現在是奈美。請根據這個話題跟用戶聊天，用簡單且地道的英語（適合${difficultyLevel}程度）：${topic}。請直接輸出對話內容，不要有其他廢話。`
+
       const response = await AIAdapter.generateResponse(
         selectedProvider,
         apiKeys[selectedProvider],
-        `請用簡單友善的英語回應這個話題：${topic}`
+        prompt
       )
 
+      setCurrentThought(response)
       await speechService.textToSpeech(response, 'en')
     } catch (error) {
       console.error('Chat error:', error)
-      setValidationError('聊天功能暫時無法使用')
+      setValidationError('哎呀，奈美斷網了，請檢查 API Key 或是網絡狀況。')
     } finally {
       setPlaying(false)
     }
   }
 
-  const handlePracticeMode = () => {
+  const handleStop = () => {
+    speechService.stopSpeaking()
+    setPlaying(false)
+  }
+
+  const handlePracticeStart = async () => {
     if (!selectedProvider || !apiKeys[selectedProvider]) {
-      setValidationError('請先選擇AI平台並設置API Key')
+      setValidationError('設置好 API Key 才能開始練習哦 🌸')
       return
     }
 
+    setPracticeResult(null)
+    setRecording(true)
     startSession('practice', difficultyLevel)
-    setMode('practice')
+
+    try {
+      const userChinese = await speechService.speechToText('zh')
+      setRecording(false)
+      setCurrentThought('奈美正在翻譯中...')
+
+      const prompt = `用戶說了中文：「${userChinese}」。請將其翻譯為地道的英文（適合${difficultyLevel}難度），並提供最多3個意義相同但表達不同的例句。格式請直接返回：[翻譯]\n例句1:...\n例句2:...\n例句3:...`
+
+      const aiResponse = await AIAdapter.generateResponse(
+        selectedProvider,
+        apiKeys[selectedProvider],
+        prompt
+      )
+
+      const lines = aiResponse.split('\n').filter(l => l.trim())
+      const translated = lines[0].replace('[翻譯]', '').trim()
+      const examples = lines.slice(1).map(l => l.replace(/例句\d:?/, '').trim())
+
+      setPracticeResult({
+        original: userChinese,
+        translated,
+        examples
+      })
+      setCurrentThought(null)
+      await speechService.textToSpeech(translated, 'en')
+    } catch (error) {
+      console.error('Practice error:', error)
+      setValidationError('口語練習遇到一點小麻煩，請再試一次。')
+      setRecording(false)
+    }
   }
 
-  const handleRecording = async () => {
-    if (isRecording) {
+  const handleRepeatExample = async (text: string) => {
+    setPlaying(true)
+    await speechService.textToSpeech(text, 'en')
+    setPlaying(false)
+
+    setRecording(true)
+    try {
+      await speechService.speechToText('en')
+      const score = await speechService.evaluatePronunciation(new Blob(), text)
+      setPracticeResult(prev => prev ? { ...prev, score } : null)
+    } catch (e) {
+      console.error(e)
+    } finally {
       setRecording(false)
-      // 停止錄音並處理
-      try {
-        const userSpeech = await speechService.speechToText('zh')
-        console.log('User said:', userSpeech)
-        // 這裡會調用AI進行翻譯和評分
-      } catch (error) {
-        console.error('Speech recognition error:', error)
-      }
-    } else {
-      setRecording(true)
-      try {
-        await speechService.speechToText('zh')
-      } catch (error) {
-        console.error('Speech recognition error:', error)
-        setRecording(false)
-      }
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <header className="text-center py-8">
-          <div className="flex justify-center mb-4">
-            <NamiIcon size={80} animated={true} />
+    <div className="min-h-screen bg-[#FDFCF0] bg-gradient-to-br from-[#E0F2FE] via-[#FDFCF0] to-[#FAF5FF] p-4 md:p-8 font-sans">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <header className="text-center py-6 flex flex-col items-center">
+          <div className="relative mb-6">
+            <div className="absolute -inset-4 bg-white/40 blur-2xl rounded-full animate-pulse"></div>
+            <NamiIcon size={120} animated={isPlaying} />
+            <div className="absolute -bottom-2 -right-2 bg-pink-400 text-white p-2 rounded-full shadow-lg">
+              <Sparkles size={20} />
+            </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">奈美聊天</h1>
-          <p className="text-lg text-gray-600">中英文口語練習助手</p>
+          <h1 className="text-5xl font-black text-[#1E293B] tracking-tight mb-2">奈美聊天</h1>
+          <p className="text-xl text-[#64748B] font-medium">✨ 讓英語練習像拿鐵般絲滑 ✨</p>
         </header>
 
-        {/* AI Provider Selection */}
-        <Card className="border-2 border-blue-200 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              AI平台設定
-            </CardTitle>
-            <CardDescription>
-              選擇您喜歡的AI平台並設置API Key
-            </CardDescription>
+        <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/70 backdrop-blur-md rounded-3xl overflow-hidden">
+          <CardHeader className="pb-4">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-2xl font-bold text-[#334155] flex items-center gap-3">
+                <Settings className="text-blue-500" /> AI 平台設定
+              </CardTitle>
+              <Badge variant="outline" className="border-pink-200 text-pink-500 px-3 py-1 rounded-full">
+                {selectedProvider || '未選擇'}
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-4">
-              <Label htmlFor="ai-provider">選擇AI平台：</Label>
-              <Select onValueChange={handleProviderSelect} value={selectedProvider || ''}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="選擇AI平台" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DeepSeek">DeepSeek</SelectItem>
-                  <SelectItem value="Gemini">Gemini</SelectItem>
-                  <SelectItem value="GPT">ChatGPT</SelectItem>
-                  <SelectItem value="Grok">Grok</SelectItem>
-                </SelectContent>
-              </Select>
+          <CardContent className="space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-[#64748B]">選擇您的 AI 夥伴</Label>
+                <Select onValueChange={handleProviderSelect} value={selectedProvider || ''}>
+                  <SelectTrigger className="w-56 bg-white border-blue-50 shadow-sm rounded-xl">
+                    <SelectValue placeholder="請選擇平台" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="DeepSeek">DeepSeek (推薦)</SelectItem>
+                    <SelectItem value="Gemini">Gemini (Google)</SelectItem>
+                    <SelectItem value="GPT">ChatGPT (OpenAI)</SelectItem>
+                    <SelectItem value="Grok">Grok (xAI)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               {selectedProvider && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowApiKeyInput(!showApiKeyInput)}
-                >
-                  {showApiKeyInput ? '隱藏' : '顯示'} API Key
-                </Button>
+                <div className="pt-6">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-full"
+                    onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                  >
+                    {showApiKeyInput ? '👁️ 隱藏 Key' : '🔑 設置 Key'}
+                  </Button>
+                </div>
               )}
             </div>
 
             {selectedProvider && (
-              <div className="flex items-center gap-2">
-                <Badge variant={apiKeys[selectedProvider] ? "default" : "secondary"}>
-                  {apiKeys[selectedProvider] ? '已配置' : '未配置'}
+              <div className="flex items-center gap-3 bg-blue-50/50 p-3 rounded-2xl w-fit">
+                <Badge variant={apiKeys[selectedProvider] ? "default" : "secondary"} className={apiKeys[selectedProvider] ? "bg-green-500 text-white" : ""}>
+                  {apiKeys[selectedProvider] ? '✅ 已授權' : '⚠️ 需配置'}
                 </Badge>
                 <a
                   href={AIAdapter.getApiKeyUrl(selectedProvider)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline"
+                  className="text-sm font-semibold text-blue-500 hover:underline"
                 >
-                  獲取API Key →
+                  獲取 API Key →
                 </a>
               </div>
             )}
 
             {showApiKeyInput && selectedProvider && (
-              <div className="space-y-2 p-4 bg-gray-50 rounded-lg">
-                <Label htmlFor="api-key">API Key：</Label>
-                <div className="flex gap-2">
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3 p-5 bg-[#F8FAFC] border border-blue-100 rounded-2xl">
+                <Label className="text-xs font-bold uppercase tracking-wider text-[#94A3B8]">輸入 API Key</Label>
+                <div className="flex gap-3">
                   <Input
-                    id="api-key"
                     type="password"
-                    placeholder="輸入您的API Key"
+                    placeholder="貼上您的金鑰..."
                     value={tempApiKey}
                     onChange={(e) => setTempApiKey(e.target.value)}
-                    className="flex-1"
+                    className="bg-white border-blue-100 rounded-xl"
                   />
-                  <Button
-                    onClick={handleApiKeySubmit}
-                    disabled={isValidating}
-                    size="sm"
-                  >
-                    {isValidating ? '驗證中...' : '驗證'}
+                  <Button onClick={handleApiKeySubmit} disabled={isValidating} className="bg-blue-600 hover:bg-blue-700 rounded-xl px-6 text-white">
+                    {isValidating ? '驗證中...' : '提交'}
                   </Button>
                 </div>
-                {validationError && (
-                  <p className="text-sm text-red-600">{validationError}</p>
-                )}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Difficulty Selection */}
-        <Card className="border-2 border-purple-200 shadow-lg">
-          <CardHeader>
-            <CardTitle>難度選擇</CardTitle>
-            <CardDescription>選擇適合您的練習難度</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              {(['easy', 'medium', 'hard'] as const).map((level) => (
-                <Button
-                  key={level}
-                  variant={difficultyLevel === level ? "default" : "outline"}
-                  onClick={() => setDifficultyLevel(level)}
-                  className="flex-1"
-                >
-                  {level === 'easy' ? '簡單' : level === 'medium' ? '中等' : '高級'}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Main Functions */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Nami Chat */}
-          <Card className="border-2 border-green-200 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Volume2 className="w-5 h-5" />
-                奈美說說
-              </CardTitle>
-              <CardDescription>
-                隨機英語聊天話題，提升聽力理解
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center py-4">
-                <NamiIcon size={60} animated={false} />
-              </div>
-              <Button
-                onClick={handleNamiChat}
-                disabled={!selectedProvider || !apiKeys[selectedProvider] || isPlaying}
-                className="w-full"
-                size="lg"
-              >
-                {isPlaying ? (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    聊天中...
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    開始聊天
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Practice Mode */}
-          <Card className="border-2 border-orange-200 shadow-lg hover:shadow-xl transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mic className="w-5 h-5" />
-                口語練習
-              </CardTitle>
-              <CardDescription>
-                中文輸入，英文回應，發音評分
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center py-4">
-                <NamiIcon size={60} animated={false} />
-              </div>
-              <Button
-                onClick={handlePracticeMode}
-                disabled={!selectedProvider || !apiKeys[selectedProvider]}
-                className="w-full"
-                size="lg"
-              >
-                開始練習
-              </Button>
-              {isRecording && (
-                <div className="flex items-center justify-center gap-2 text-red-600">
-                  <MicOff className="w-4 h-4" />
-                  錄音中...
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <div className="flex justify-center gap-4">
+          {(['easy', 'medium', 'hard'] as const).map((level) => (
+            <button
+              key={level}
+              onClick={() => setDifficultyLevel(level)}
+              className={`px-8 py-3 rounded-2xl font-bold transition-all duration-300 ${difficultyLevel === level
+                  ? 'bg-[#1E293B] text-white shadow-xl scale-105'
+                  : 'bg-white text-[#64748B] hover:bg-blue-50 shadow-sm'
+                }`}
+            >
+              {level === 'easy' ? '🧸 簡單' : level === 'medium' ? '☕ 中等' : '🚀 高級'}
+            </button>
+          ))}
         </div>
 
-        {/* Status Messages */}
-        {validationError && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="pt-6">
-              <p className="text-red-700">{validationError}</p>
-            </CardContent>
+        {currentThought && (
+          <div className="relative bg-white p-8 rounded-[2rem] shadow-sm border border-pink-50 animate-bounce-subtle">
+            <div className="absolute -top-4 left-10 w-8 h-8 bg-white rotate-45 border-l border-t border-pink-50"></div>
+            <p className="text-xl text-[#334155] italic leading-relaxed">「 {currentThought} 」</p>
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-8">
+          <Button
+            onClick={isPlaying ? handleStop : handleNamiChat}
+            disabled={!selectedProvider || !apiKeys[selectedProvider] || isRecording}
+            className={`h-32 rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white ${isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-[#10B981] hover:bg-[#059669]'
+              }`}
+          >
+            <div className="flex flex-col items-center gap-2">
+              {isPlaying ? <Square size={32} /> : <Volume2 size={32} />}
+              <span>{isPlaying ? '停止播放' : '奈美說說'}</span>
+              <span className="text-xs font-normal opacity-80 underline">隨機話題聊天</span>
+            </div>
+          </Button>
+
+          <Button
+            onClick={handlePracticeStart}
+            disabled={!selectedProvider || !apiKeys[selectedProvider] || isPlaying || isRecording}
+            className="h-32 bg-[#6366F1] hover:bg-[#4F46E5] rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white"
+          >
+            <div className="flex flex-col items-center gap-2">
+              {isRecording ? <div className="w-8 h-8 rounded-full bg-white animate-ping" /> : <Mic size={32} />}
+              <span>{isRecording ? '聆聽中...' : '口語練習'}</span>
+              <span className="text-xs font-normal opacity-80 underline">中譯英 & 評分</span>
+            </div>
+          </Button>
+        </div>
+
+        {practiceResult && (
+          <Card className="border-none shadow-xl bg-white/90 rounded-[2rem] p-6 space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Languages /></div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-400 uppercase">翻譯結果</h3>
+                <p className="text-xl font-bold text-gray-700">{practiceResult.original}</p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-50">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-blue-600 font-black text-2xl tracking-tight">{practiceResult.translated}</span>
+                <Button size="icon" variant="ghost" className="rounded-full text-blue-500 hover:bg-blue-100" onClick={() => speechService.textToSpeech(practiceResult.translated, 'en')}>
+                  <Volume2 />
+                </Button>
+              </div>
+              <div className="space-y-3">
+                <Label className="text-xs font-bold text-gray-400 uppercase">地道同義句 (點擊跟讀)</Label>
+                {practiceResult.examples.map((ex, i) => (
+                  <div key={i} className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 cursor-pointer group" onClick={() => handleRepeatExample(ex)}>
+                    <span className="text-gray-600 font-medium">{ex}</span>
+                    <Award className="text-gray-200 group-hover:text-blue-400 transition-colors" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {practiceResult.score && (
+              <div className="p-6 bg-gradient-to-r from-green-50 to-teal-50 rounded-3xl border border-green-100 flex items-center gap-4">
+                <div className="text-4xl font-black text-green-600">{practiceResult.score.score}</div>
+                <div>
+                  <div className="font-bold text-green-800">奈美評分：{practiceResult.score.feedback}</div>
+                  <div className="text-sm text-green-600">{practiceResult.score.improvements.join(' | ')}</div>
+                </div>
+              </div>
+            )}
           </Card>
         )}
+
+        {validationError && (
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-red-500 text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3">
+            <span className="font-bold">{validationError}</span>
+            <button className="text-white hover:bg-white/20 p-1 rounded-full" onClick={() => setValidationError(null)}>✕</button>
+          </div>
+        )}
       </div>
+
+      <style jsx global>{`
+        @keyframes bounce-subtle {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
+        .animate-bounce-subtle {
+          animation: bounce-subtle 3s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   )
 }
