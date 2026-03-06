@@ -107,13 +107,18 @@ export default function Home() {
     setPlaying(false)
   }
 
-  const handlePracticeStart = async () => {
+  const [selectedPracticeText, setSelectedPracticeText] = useState<string | null>(null)
+  const [diffResult, setDiffResult] = useState<{ word: string, match: boolean, type: 'hit' | 'miss' | 'extra' }[] | null>(null)
+
+  const handleWantToSay = async () => {
     if (!selectedProvider || !apiKeys[selectedProvider]) {
-      setValidationError('設置好 API Key 才能開始練習哦 🌸')
+      setValidationError('設置好 API Key 才能開始哦 🌸')
       return
     }
 
     setPracticeResult(null)
+    setDiffResult(null)
+    setSelectedPracticeText(null)
     setRecording(true)
     startSession('practice', difficultyLevel)
 
@@ -122,7 +127,8 @@ export default function Home() {
       setRecording(false)
       setCurrentThought(`你說的是：「${userChinese}」... 奈美正在翻譯中...`)
 
-      const prompt = `用戶說了中文：「${userChinese}」。請將其翻譯為地道的英文（適合${difficultyLevel}難度），並提供最多3個意義相同但表達不同的例句。格式請直接返回：[翻譯]\n例句1:...\n例句2:...\n例句3:...`
+      const lengthHint = difficultyLevel === 'easy' ? '不超過10個單詞' : difficultyLevel === 'medium' ? '20個單詞左右' : '地道長句'
+      const prompt = `用戶說了中文：「${userChinese}」。請將其翻譯為地道的英文（適合${difficultyLevel}難度，長度${lengthHint}），並提供2-3個語義相同但表達不同的例句。格式嚴格要求：[翻譯]\n例句1:...\n例句2:...`
 
       const aiResponse = await AIAdapter.generateResponse(
         selectedProvider,
@@ -139,34 +145,51 @@ export default function Home() {
         translated,
         examples
       })
+      setSelectedPracticeText(translated)
       setCurrentThought(null)
       await speechService.textToSpeech(translated, 'en')
     } catch (error: any) {
       console.error('Practice error:', error)
-      const msg = error.message || ''
-      if (msg.includes('超時') || msg.includes('權限')) {
-        setValidationError(`${msg}。請確保已允許麥克風權限，或環境不要太吵雜。🌸`)
-      } else {
-        setValidationError('口語練習遇到一點小麻煩，請再試一次。')
-      }
+      setValidationError(error.message || '哎呀，錄音出了點問題，請重試 🌸')
       setRecording(false)
       setCurrentThought(null)
     }
   }
 
-  const handleRepeatExample = async (text: string) => {
-    setPlaying(true)
-    await speechService.textToSpeech(text, 'en')
-    setPlaying(false)
+  const calculateDiff = (target: string, user: string) => {
+    const targetWords = target.toLowerCase().replace(/[.,!?;]/g, '').split(/\s+/)
+    const userWords = user.toLowerCase().replace(/[.,!?;]/g, '').split(/\s+/)
+
+    return targetWords.map((word, i) => ({
+      word,
+      match: userWords.includes(word),
+      type: userWords[i] === word ? 'hit' as const : (userWords.includes(word) ? 'extra' as const : 'miss' as const)
+    }))
+  }
+
+  const handleSpeakingPractice = async () => {
+    if (!selectedPracticeText) {
+      setValidationError('請先用「我想要說」生成句子，或選擇下面的句子哦 🌸')
+      return
+    }
 
     setRecording(true)
+    setDiffResult(null)
     try {
-      await speechService.speechToText('en')
-      const score = await speechService.evaluatePronunciation(new Blob(), text)
+      const transcript = await speechService.speechToText('en')
+      setRecording(false)
+
+      // 比對差異
+      const diff = calculateDiff(selectedPracticeText, transcript)
+      setDiffResult(diff)
+
+      // 評分
+      const score = await speechService.evaluatePronunciation(new Blob(), selectedPracticeText)
       setPracticeResult(prev => prev ? { ...prev, score } : null)
-    } catch (e) {
-      console.error(e)
-    } finally {
+
+      setCurrentThought(`你說的是：「${transcript}」`)
+    } catch (error: any) {
+      setValidationError(error.message || '錄音檢測失敗，請再試一次 🌸')
       setRecording(false)
     }
   }
