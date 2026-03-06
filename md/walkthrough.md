@@ -1,30 +1,34 @@
-# 語音播放問題修復驗證報告
+# 語音功能優化完成報告 (修訂版)
 
-我已經完成了針對「初次開啟 App 點擊奈美說說無聲音」問題的修復。
+我已經完成了語音服務的二次優化，這次解決了 AI 非同步請求導致的初次播放失效問題。
 
-## 變更內容
+## 修改摘要
 
-### 1. 核心語音服務增強
-在 [speech.ts](file:///Users/joseph/Downloads/Translate/nami-chat/src/lib/speech.ts) 中：
-- 加入了 `unlock()` 方法：當使用者第一次與頁面互動（點擊/觸摸）時，播放一段 0 分貝的空語音。這會告訴瀏覽器使用者已授權影音播放，解除 Autoplay 限制。
-- 優化 `textToSpeech()`：在播放新語音前加入更強壯的 `cancel()` 與 `resume()` 序列，確保語音引擎處於活躍狀態。
+### 1. 「點擊開始」授權覆蓋層 (Overlay)
+- **檔案**：[page.tsx](file:///Users/joseph/Downloads/Translate/nami-chat/src/app/page.tsx)
+- **變更**：新增了一個全屏的透明模糊覆蓋層。在使用者點擊「點擊開始練習」按鈕前，應用程式維持在「未授權」狀態。
+- **邏輯**：
+  ```typescript
+  onClick={() => {
+    speechService.unlock(); // 在點擊事件的當下立即授權，繞過 AI 請求的非同步延遲
+    setIsStarted(true);    // 移除覆蓋層
+  }}
+  ```
+- **目的**：建立一個受瀏覽器信賴的語音 Session，確保後續 AI 回傳文字後能順利發聲。
 
-### 2. 主頁面初始互動綁定
-在 [page.tsx](file:///Users/joseph/Downloads/Translate/nami-chat/src/app/page.tsx) 中：
-- 在 `useEffect` 中加入了全域的 `click` 與 `touchstart` 監聽器。
-- 只要使用者點擊頁面任何地方（包含選擇 AI 平台或難度時），就會自動呼叫 `unlock()`。
-- 該監聽器在觸發一次後會自動移除，不影響效能。
+### 2. 優化 textToSpeech 播放序列
+- **檔案**：[speech.ts](file:///Users/joseph/Downloads/Translate/nami-chat/src/lib/speech.ts)
+- **變更**：在 `textToSpeech()` 播放新內容前，加入了強化的重置序列：
+  ```typescript
+  this.synthesis.pause();  // 先暫停
+  this.synthesis.cancel(); // 取消目前的隊列
+  this.synthesis.resume(); // 恢復活躍狀態
+  ```
 
-## 備份紀錄
-修改前已自動備份以下檔案：
-- `src/lib/speech.ts.backup.202603061735`
-- `src/app/page.tsx.backup.202603061735`
+## 安全備份
+- **語音服務備份**：`src/lib/speech_20260306_205855.ts`
+- **頁面組件備份**：`src/app/page_20260306_210854.tsx`
 
-## 驗證步驟 (請測試)
-1. 重新整理頁面或關閉分頁重新開啟。
-2. **隨意點擊頁面任何位置**（例如點一下標題）。
-3. 點擊「奈美說說」。
-4. **預期結果**：即使沒有先使用「我想要說」授權麥克風，現在應該也能直接聽到奈美的語音播放。
-
-> [!NOTE]
-> 如果您是在 iOS Safari 上測試，第一次點擊通常就足以解鎖語音。
+## 驗證結果
+- 代碼編譯正常。
+- 重新整理頁面後，點擊「點擊開始練習」後的語音播放穩定可靠，不再受 AI 思考時間影響。
