@@ -40,7 +40,6 @@ export default function Home() {
     examples: string[],
     score?: any
   } | null>(null)
-  const [isStarted, setIsStarted] = useState(false)
 
   // 監聽播放狀態
   useEffect(() => {
@@ -456,33 +455,6 @@ export default function Home() {
           animation: bounce-subtle 3s ease-in-out infinite;
         }
       `}</style>
-
-      {/* 初次點擊授權覆蓋層 */}
-      {!isStarted && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#FDFCF0]/80 backdrop-blur-xl animate-in fade-in duration-700">
-          <div className="text-center p-8 max-w-sm w-full space-y-8 animate-in zoom-in-95 duration-500">
-            <div className="relative inline-block">
-              <div className="absolute -inset-4 bg-pink-200/50 blur-2xl rounded-full animate-pulse"></div>
-              <NaimeIcon size={160} animated={true} />
-            </div>
-            <div className="space-y-4">
-              <h2 className="text-3xl font-black text-[#1E293B]">奈美準備好了 🌸</h2>
-              <p className="text-[#64748B] font-medium leading-relaxed">
-                點擊下方按鈕，開始與奈美進行絲滑的英語對話練習吧！
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                speechService.unlock()
-                setIsStarted(true)
-              }}
-              className="w-full h-16 rounded-2xl text-xl font-bold bg-[#1E293B] hover:bg-[#334155] text-white shadow-2xl hover:scale-105 transition-all"
-            >
-              點擊開始練習 ✨
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
