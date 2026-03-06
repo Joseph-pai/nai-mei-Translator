@@ -313,8 +313,7 @@ export default function Home() {
           <Button
             onClick={isPlaying ? handleStop : handleNamiChat}
             disabled={!selectedProvider || !apiKeys[selectedProvider] || isRecording}
-            className={`h-32 rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white ${isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-[#10B981] hover:bg-[#059669]'
-              }`}
+            className={`h-32 rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white ${isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-[#10B981] hover:bg-[#059669]'}`}
           >
             <div className="flex flex-col items-center gap-2">
               {isPlaying ? <Square size={32} /> : <Volume2 size={32} />}
@@ -324,27 +323,26 @@ export default function Home() {
           </Button>
 
           <Button
-            onClick={isRecording ? () => speechService.stopListening() : handlePracticeStart}
+            onClick={isRecording ? () => speechService.stopListening() : handleWantToSay}
             disabled={!selectedProvider || !apiKeys[selectedProvider] || isPlaying}
-            className={`h-32 rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white ${isRecording ? 'bg-orange-500 animate-pulse' : 'bg-[#6366F1] hover:bg-[#4F46E5]'
-              }`}
+            className={`h-32 rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white ${isRecording ? 'bg-orange-500 animate-pulse' : 'bg-blue-500 hover:bg-blue-600'}`}
           >
             <div className="flex flex-col items-center gap-2">
               {isRecording ? <div className="w-8 h-8 rounded-full bg-white animate-ping" /> : <Mic size={32} />}
-              <span>{isRecording ? '停止錄音' : '說來聽聽'}</span>
-              <span className="text-xs font-normal opacity-80 underline">點擊開始/停止，每次都顯評分</span>
+              <span>{isRecording ? '聆聽中...' : '我想要說'}</span>
+              <span className="text-xs font-normal opacity-80 underline">說中文，奈美教你說英語</span>
             </div>
           </Button>
 
           <Button
-            onClick={handlePracticeStart}
-            disabled={!selectedProvider || !apiKeys[selectedProvider] || isPlaying || isRecording}
-            className="h-32 bg-[#A855F7] hover:bg-[#9333EA] rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white"
+            onClick={isRecording ? () => speechService.stopListening() : handleSpeakingPractice}
+            disabled={!selectedProvider || !apiKeys[selectedProvider] || isPlaying || !practiceResult}
+            className={`h-32 md:col-span-2 rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white ${isRecording ? 'bg-pink-500 animate-pulse' : 'bg-[#6366F1] hover:bg-[#4F46E5] disabled:opacity-50'}`}
           >
             <div className="flex flex-col items-center gap-2">
               <Languages size={32} />
-              <span>翻譯練習</span>
-              <span className="text-xs font-normal opacity-80 underline">中譯英 & 深度學習</span>
+              <span>{isRecording ? '正在錄音並比對...' : '口語練習'}</span>
+              <span className="text-xs font-normal opacity-80 underline">練習選中的句子，奈美為你糾音</span>
             </div>
           </Button>
         </div>
