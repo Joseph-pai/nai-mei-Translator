@@ -83,7 +83,8 @@ export default function Home() {
 
     try {
       const topic = AIAdapter.generateChatTopic()
-      const prompt = `你現在是奈美。請根據這個話題跟用戶聊天，用簡單且地道的英語（適合${difficultyLevel}程度）：${topic}。請直接輸出對話內容，不要有其他廢話。`
+      const lengthHint = difficultyLevel === 'easy' ? '非常簡短（不超過15個單詞）' : difficultyLevel === 'medium' ? '適中長度（30個單詞左右）' : '詳細生動'
+      const prompt = `你現在是奈美。請根據這個話題跟用戶聊天，用簡單且地道的英語（適合${difficultyLevel}程度，長度請限制在${lengthHint}）：${topic}。請直接輸出對話內容，不要有其他廢話。`
 
       const response = await AIAdapter.generateResponse(
         selectedProvider,
@@ -300,14 +301,27 @@ export default function Home() {
           </Button>
 
           <Button
-            onClick={handlePracticeStart}
-            disabled={!selectedProvider || !apiKeys[selectedProvider] || isPlaying || isRecording}
-            className="h-32 bg-[#6366F1] hover:bg-[#4F46E5] rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white"
+            onClick={isRecording ? () => speechService.stopListening() : handlePracticeStart}
+            disabled={!selectedProvider || !apiKeys[selectedProvider] || isPlaying}
+            className={`h-32 rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white ${isRecording ? 'bg-orange-500 animate-pulse' : 'bg-[#6366F1] hover:bg-[#4F46E5]'
+              }`}
           >
             <div className="flex flex-col items-center gap-2">
               {isRecording ? <div className="w-8 h-8 rounded-full bg-white animate-ping" /> : <Mic size={32} />}
-              <span>{isRecording ? '聆聽中...' : '口語練習'}</span>
-              <span className="text-xs font-normal opacity-80 underline">中譯英 & 評分</span>
+              <span>{isRecording ? '停止錄音' : '說來聽聽'}</span>
+              <span className="text-xs font-normal opacity-80 underline">點擊開始/停止，每次都顯評分</span>
+            </div>
+          </Button>
+
+          <Button
+            onClick={handlePracticeStart}
+            disabled={!selectedProvider || !apiKeys[selectedProvider] || isPlaying || isRecording}
+            className="h-32 bg-[#A855F7] hover:bg-[#9333EA] rounded-[2.5rem] text-2xl font-black shadow-2xl transition-all hover:scale-[1.02] active:scale-95 text-white"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <Languages size={32} />
+              <span>翻譯練習</span>
+              <span className="text-xs font-normal opacity-80 underline">中譯英 & 深度學習</span>
             </div>
           </Button>
         </div>

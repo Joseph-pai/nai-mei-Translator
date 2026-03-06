@@ -53,14 +53,19 @@ class WebSpeechService implements SpeechService {
       utterance.pitch = 1.0
       utterance.volume = 1.0
 
-      // 優先選擇高品質語音 (例如 Google 或 Apple 的地道中文/英文)
+      // 優先選擇高品質的女聲 (例如 Google, Apple, Microsoft 的女聲)
       const voices = this.voices.length > 0 ? this.voices : this.synthesis.getVoices()
       const targetLang = language === 'zh' ? 'zh' : 'en'
 
-      // 優先權：高品質(Google/Premium) > 匹配語言 > 首位
+      const isFemale = (name: string) =>
+        name.includes('Female') || name.includes('Woman') || name.includes('Girl') ||
+        name.includes('Zhiyu') || name.includes('Hanhan') || name.includes('Samantha') ||
+        name.includes('Victoria') || name.includes('Meijia') || name.includes('Huihui') || name.includes('Xiaoxiao')
+
       let selectedVoice = voices.find(v =>
-        (v.lang.includes(targetLang) && (v.name.includes('Google') || v.name.includes('Premium')))
-      ) || voices.find(v => v.lang.includes(targetLang))
+        v.lang.includes(targetLang) && isFemale(v.name) && (v.name.includes('Google') || v.name.includes('Premium'))
+      ) || voices.find(v => v.lang.includes(targetLang) && isFemale(v.name))
+        || voices.find(v => v.lang.includes(targetLang))
 
       if (selectedVoice) {
         utterance.voice = selectedVoice
