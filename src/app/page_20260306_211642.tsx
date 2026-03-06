@@ -476,9 +476,9 @@ export default function Home() {
                 speechService.unlock()
                 setIsStarted(true)
               }}
-              className="w-full h-16 rounded-2xl text-xl font-bold bg-pink-500 hover:bg-pink-600 text-white shadow-2xl hover:scale-105 transition-all"
+              className="w-full h-16 rounded-2xl text-xl font-bold bg-[#1E293B] hover:bg-[#334155] text-white shadow-2xl hover:scale-105 transition-all"
             >
-              點擊開始聊聊吧 ✨
+              點擊開始練習 ✨
             </Button>
           </div>
         </div>
