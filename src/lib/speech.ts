@@ -5,13 +5,18 @@ class WebSpeechService implements SpeechService {
   private recognition: any = null
 
   constructor() {
-    this.synthesis = window.speechSynthesis
-    
-    // 初始化語音識別
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
-      this.recognition = new SpeechRecognition()
-      this.setupRecognition()
+    if (typeof window !== 'undefined') {
+      this.synthesis = window.speechSynthesis
+      
+      // 初始化語音識別
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
+        this.recognition = new SpeechRecognition()
+        this.setupRecognition()
+      }
+    } else {
+      // Server-side fallback
+      this.synthesis = {} as SpeechSynthesis
     }
   }
 
@@ -24,6 +29,11 @@ class WebSpeechService implements SpeechService {
   }
 
   async textToSpeech(text: string, language: 'zh' | 'en'): Promise<void> {
+    if (typeof window === 'undefined') {
+      // Server-side fallback
+      return Promise.resolve()
+    }
+
     return new Promise((resolve, reject) => {
       // 取消之前的語音
       this.synthesis.cancel()
@@ -51,6 +61,11 @@ class WebSpeechService implements SpeechService {
   }
 
   async speechToText(language: 'zh' | 'en'): Promise<string> {
+    if (typeof window === 'undefined') {
+      // Server-side fallback
+      return Promise.resolve('Server mode - speech recognition not available')
+    }
+
     return new Promise((resolve, reject) => {
       if (!this.recognition) {
         reject(new Error('瀏覽器不支持語音識別'))
@@ -104,7 +119,9 @@ class WebSpeechService implements SpeechService {
 
   // 停止語音合成
   stopSpeaking(): void {
-    this.synthesis.cancel()
+    if (typeof window !== 'undefined') {
+      this.synthesis.cancel()
+    }
   }
 
   // 停止語音識別
@@ -116,6 +133,7 @@ class WebSpeechService implements SpeechService {
 
   // 檢查瀏覽器支持
   static isSupported(): boolean {
+    if (typeof window === 'undefined') return false
     return !!(window.speechSynthesis && 
       ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window))
   }
