@@ -1,6 +1,6 @@
 {
-  "name": "奈美聊天 - Nami Chat",
-  "short_name": "Nami",
+  "name": "奈美聊天 - naime Chat",
+  "short_name": "naime",
   "description": "中英文口語練習APP，讓您輕鬆提升英語對話能力",
   "start_url": "/",
   "display": "standalone",
@@ -9,16 +9,20 @@
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "zh-TW",
-  "categories": ["education", "productivity", "utilities"],
+  "categories": [
+    "education",
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
-      "src": "/icon/nami_icon.png",
+      "src": "/icon/naime_icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon/nami_icon.png",
+      "src": "/icon/naime_icon.png",
       "sizes": "192x192",
       "type": "image/png"
     }

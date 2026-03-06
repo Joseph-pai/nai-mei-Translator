@@ -35,4 +35,4 @@ const NaimeIcon: React.FC<NaimeIconProps> = ({ size = 100, animated = false, cla
   )
 }
 
-export default NamiIcon
+export default NaimeIcon
