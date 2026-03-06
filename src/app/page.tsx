@@ -348,32 +348,63 @@ export default function Home() {
         </div>
 
         {practiceResult && (
-          <Card className="border-none shadow-xl bg-white/90 rounded-[2rem] p-6 space-y-6">
+          <Card className="border-none shadow-xl bg-white/90 rounded-[2rem] p-6 space-y-6 animate-in slide-in-from-bottom-5 duration-500">
             <div className="flex items-center gap-3">
               <div className="bg-orange-100 p-3 rounded-2xl text-orange-600"><Languages /></div>
               <div>
-                <h3 className="text-sm font-bold text-gray-400 uppercase">翻譯結果</h3>
+                <h3 className="text-sm font-bold text-gray-400 uppercase">翻譯結果 (點選下句開始在上面按「口語練習」)</h3>
                 <p className="text-xl font-bold text-gray-700">{practiceResult.original}</p>
               </div>
             </div>
 
-            <div className="bg-blue-50/50 p-6 rounded-3xl border border-blue-50">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-blue-600 font-black text-2xl tracking-tight">{practiceResult.translated}</span>
-                <Button size="icon" variant="ghost" className="rounded-full text-blue-500 hover:bg-blue-100" onClick={() => speechService.textToSpeech(practiceResult.translated, 'en')}>
-                  <Volume2 />
-                </Button>
+            <div className="space-y-4">
+              {/* 主翻譯 */}
+              <div
+                onClick={() => { setSelectedPracticeText(practiceResult.translated); speechService.textToSpeech(practiceResult.translated, 'en'); }}
+                className={`p-6 rounded-3xl border-2 transition-all cursor-pointer ${selectedPracticeText === practiceResult.translated ? 'border-blue-500 bg-blue-50' : 'border-blue-50 bg-white'
+                  }`}
+              >
+                <div className="flex justify-between items-center">
+                  <span className="text-blue-600 font-black text-2xl tracking-tight">{practiceResult.translated}</span>
+                  <Volume2 className="text-blue-300" />
+                </div>
               </div>
-              <div className="space-y-3">
-                <Label className="text-xs font-bold text-gray-400 uppercase">地道同義句 (點擊跟讀)</Label>
+
+              {/* 例句 */}
+              <div className="grid gap-3">
                 {practiceResult.examples.map((ex, i) => (
-                  <div key={i} className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-gray-50 hover:border-blue-200 cursor-pointer group" onClick={() => handleRepeatExample(ex)}>
+                  <div
+                    key={i}
+                    onClick={() => { setSelectedPracticeText(ex); speechService.textToSpeech(ex, 'en'); }}
+                    className={`flex items-center justify-between p-4 rounded-2xl shadow-sm border-2 transition-all cursor-pointer ${selectedPracticeText === ex ? 'border-purple-500 bg-purple-50' : 'border-gray-50 bg-white'
+                      }`}
+                  >
                     <span className="text-gray-600 font-medium">{ex}</span>
-                    <Award className="text-gray-200 group-hover:text-blue-400 transition-colors" />
+                    <Volume2 className="text-gray-300 size-4" />
                   </div>
                 ))}
               </div>
             </div>
+
+            {diffResult && (
+              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-3">
+                <Label className="text-xs font-bold text-slate-400 uppercase">發音比對結果</Label>
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  {diffResult.map((res, i) => (
+                    <span
+                      key={i}
+                      className={`text-xl font-bold rounded-lg px-1 ${res.type === 'hit' ? 'text-green-600' :
+                        res.type === 'miss' ? 'text-red-500 underline decoration-wavy' :
+                          'text-orange-400 italic'
+                        }`}
+                    >
+                      {res.word}
+                    </span>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400">💡 綠色：正確 | 紅色：未識別出 | 橙色：部分匹配</p>
+              </div>
+            )}
 
             {practiceResult.score && (
               <div className="p-6 bg-gradient-to-r from-green-50 to-teal-50 rounded-3xl border border-green-100 flex items-center gap-4">
