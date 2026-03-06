@@ -43,18 +43,7 @@ export default function Home() {
 
   // 監聽播放狀態
   useEffect(() => {
-    // 初始互動解鎖語音引擎 (解決 Autoplay 政策限制)
-    const handleFirstInteraction = () => {
-      speechService.unlock()
-      window.removeEventListener('click', handleFirstInteraction)
-      window.removeEventListener('touchstart', handleFirstInteraction)
-    }
-    window.addEventListener('click', handleFirstInteraction)
-    window.addEventListener('touchstart', handleFirstInteraction)
-
     return () => {
-      window.removeEventListener('click', handleFirstInteraction)
-      window.removeEventListener('touchstart', handleFirstInteraction)
       speechService.stopSpeaking()
       speechService.stopListening()
     }

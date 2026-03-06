@@ -29,23 +29,6 @@ class WebSpeechService implements SpeechService {
     }
   }
 
-  /**
-   * 解鎖語音引擎 (通常在第一次使用者點擊時呼叫)
-   */
-  unlock(): void {
-    if (typeof window === 'undefined' || !this.synthesis) return
-
-    // 播放一個極短的空音來觸發瀏覽器的語音合成權限
-    try {
-      this.synthesis.resume()
-      const utterance = new SpeechSynthesisUtterance('')
-      utterance.volume = 0
-      this.synthesis.speak(utterance)
-    } catch (e) {
-      console.warn('Speech unlock failed:', e)
-    }
-  }
-
   private setupRecognition() {
     if (!this.recognition) return
     this.recognition.continuous = false
@@ -57,13 +40,11 @@ class WebSpeechService implements SpeechService {
     if (typeof window === 'undefined') return Promise.resolve()
 
     return new Promise((resolve, reject) => {
-      // 移動端與某些瀏覽器：嘗試解鎖語音引擎並清理目前的隊列
-      try {
-        this.synthesis.cancel()
+      // 移動端：嘗試解鎖語音引擎
+      if (this.synthesis.paused) {
         this.synthesis.resume()
-      } catch (e) {
-        console.warn('Speech synthesis resume/cancel failed:', e)
       }
+      this.synthesis.cancel()
 
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = language === 'zh' ? 'zh-CN' : 'en-US'
