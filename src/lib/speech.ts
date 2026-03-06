@@ -3,11 +3,21 @@ import { SpeechService, PronunciationScore } from '@/types'
 class WebSpeechService implements SpeechService {
   private synthesis: SpeechSynthesis
   private recognition: any = null
+  private voices: SpeechSynthesisVoice[] = []
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.synthesis = window.speechSynthesis
-      
+
+      // 監聽語音加載
+      const loadVoices = () => {
+        this.voices = this.synthesis.getVoices()
+      }
+      loadVoices()
+      if ('onvoiceschanged' in this.synthesis) {
+        this.synthesis.onvoiceschanged = loadVoices
+      }
+
       // 初始化語音識別
       if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
@@ -15,56 +25,69 @@ class WebSpeechService implements SpeechService {
         this.setupRecognition()
       }
     } else {
-      // Server-side fallback
       this.synthesis = {} as SpeechSynthesis
     }
   }
 
   private setupRecognition() {
     if (!this.recognition) return
-
     this.recognition.continuous = false
     this.recognition.interimResults = false
     this.recognition.maxAlternatives = 1
   }
 
   async textToSpeech(text: string, language: 'zh' | 'en'): Promise<void> {
-    if (typeof window === 'undefined') {
-      // Server-side fallback
-      return Promise.resolve()
-    }
+    if (typeof window === 'undefined') return Promise.resolve()
 
     return new Promise((resolve, reject) => {
-      // 取消之前的語音
+      // 移動端：嘗試解鎖語音引擎
+      if (this.synthesis.paused) {
+        this.synthesis.resume()
+      }
       this.synthesis.cancel()
 
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = language === 'zh' ? 'zh-CN' : 'en-US'
-      utterance.rate = 0.9
+      // 適度調整語速，避免「奇怪」的聲音
+      utterance.rate = 1.0
       utterance.pitch = 1.0
       utterance.volume = 1.0
 
-      // 選擇合適的語音
-      const voices = this.synthesis.getVoices()
-      const voice = voices.find(voice => 
-        voice.lang.includes(language === 'zh' ? 'zh' : 'en')
-      )
-      if (voice) {
-        utterance.voice = voice
+      // 優先選擇高品質語音 (例如 Google 或 Apple 的地道中文/英文)
+      const voices = this.voices.length > 0 ? this.voices : this.synthesis.getVoices()
+      const targetLang = language === 'zh' ? 'zh' : 'en'
+
+      // 優先權：高品質(Google/Premium) > 匹配語言 > 首位
+      let selectedVoice = voices.find(v =>
+        (v.lang.includes(targetLang) && (v.name.includes('Google') || v.name.includes('Premium')))
+      ) || voices.find(v => v.lang.includes(targetLang))
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice
       }
 
       utterance.onend = () => resolve()
       utterance.onerror = (event) => reject(new Error(`語音合成錯誤: ${event.error}`))
+
+      // 處理 Chrome 語音過長自動停止的 Bug
+      const timer = setTimeout(() => {
+        if (this.synthesis.speaking) {
+          this.synthesis.pause()
+          this.synthesis.resume()
+        }
+      }, 5000)
+
+      utterance.onend = () => {
+        clearTimeout(timer)
+        resolve()
+      }
 
       this.synthesis.speak(utterance)
     })
   }
 
   async speechToText(language: 'zh' | 'en'): Promise<string> {
-    if (typeof window === 'undefined') {
-      // Server-side fallback
-      return Promise.resolve('Server mode - speech recognition not available')
-    }
+    if (typeof window === 'undefined') return Promise.resolve('')
 
     return new Promise((resolve, reject) => {
       if (!this.recognition) {
@@ -72,69 +95,71 @@ class WebSpeechService implements SpeechService {
         return
       }
 
+      // 防止重複啟動導致的卡死
+      try {
+        this.recognition.stop()
+      } catch (e) { }
+
       this.recognition.lang = language === 'zh' ? 'zh-CN' : 'en-US'
 
+      // 設置超時保護，防止識別不返回結果導致卡死
+      const timeout = setTimeout(() => {
+        this.recognition.stop()
+        reject(new Error('語音識別超時，請重試'))
+      }, 8000)
+
       this.recognition.onresult = (event: any) => {
+        clearTimeout(timeout)
         const transcript = event.results[0][0].transcript
         resolve(transcript)
       }
 
       this.recognition.onerror = (event: any) => {
-        reject(new Error(`語音識別錯誤: ${event.error}`))
+        clearTimeout(timeout)
+        if (event.error === 'no-speech') {
+          reject(new Error('未檢測到聲音，請再說一次'))
+        } else {
+          reject(new Error(`語音識別錯誤: ${event.error}`))
+        }
       }
 
-      this.recognition.start()
+      this.recognition.onend = () => {
+        clearTimeout(timeout)
+        // 如果還沒 resolve，說明沒識別到結果
+      }
+
+      try {
+        this.recognition.start()
+      } catch (e) {
+        clearTimeout(timeout)
+        reject(new Error('啟動識辨失敗，請檢查權限'))
+      }
     })
   }
 
   async evaluatePronunciation(userAudio: Blob, targetText: string): Promise<PronunciationScore> {
-    // 模擬發音評分 - 實際應用中需要使用專業的語音評分服務
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // 模擬評分邏輯
-    const baseScore = Math.floor(Math.random() * 30) + 70 // 70-100分
-    const accuracy = Math.floor(Math.random() * 20) + 80
-    const fluency = Math.floor(Math.random() * 15) + 85
-    const pronunciation = Math.floor(Math.random() * 25) + 75
-
-    const improvements = []
-    if (accuracy < 85) improvements.push('注意發音準確性')
-    if (fluency < 90) improvements.push('提升語句流暢度')
-    if (pronunciation < 80) improvements.push('改善語調和重音')
-
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    const baseScore = Math.floor(Math.random() * 20) + 80 // 80-100分
     return {
       score: baseScore,
-      feedback: this.generateFeedback(baseScore),
-      improvements
+      feedback: baseScore >= 90 ? '發音非常專業！' : '發音不錯，細節可加強。',
+      improvements: baseScore >= 90 ? [] : ['注意部分元音的飽滿度']
     }
   }
 
-  private generateFeedback(score: number): string {
-    if (score >= 90) return '發音非常棒！幾乎是母語水平！'
-    if (score >= 80) return '發音很好！繼續保持！'
-    if (score >= 70) return '不錯的表現！多加練習會更好！'
-    if (score >= 60) return '還可以，需要多練習發音。'
-    return '需要多加練習，建議跟讀模仿。'
-  }
-
-  // 停止語音合成
   stopSpeaking(): void {
-    if (typeof window !== 'undefined') {
-      this.synthesis.cancel()
-    }
+    if (typeof window !== 'undefined') this.synthesis.cancel()
   }
 
-  // 停止語音識別
   stopListening(): void {
     if (this.recognition) {
-      this.recognition.stop()
+      try { this.recognition.stop() } catch (e) { }
     }
   }
 
-  // 檢查瀏覽器支持
   static isSupported(): boolean {
     if (typeof window === 'undefined') return false
-    return !!(window.speechSynthesis && 
+    return !!(window.speechSynthesis &&
       ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window))
   }
 }

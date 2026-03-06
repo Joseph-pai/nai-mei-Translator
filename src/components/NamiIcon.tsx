@@ -17,7 +17,7 @@ const NamiIcon: React.FC<NamiIconProps> = ({ size = 100, animated = false, class
       }}
     >
       <img
-        src="/nami_icon.png"
+        src="/icon/nami_icon.png"
         alt="Nami"
         className="w-full h-full object-cover"
       />
